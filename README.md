@@ -51,7 +51,7 @@ This project allows you to automatically post updates to a Discord channel using
 
 ### 4. Run the Application
 
-1. **Install Python Dependencies**:
+1. **Install NPM Dependencies**:
    - Navigate to the project directory and install any required Python packages:
    ```sh
    npm i
