@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Post Discord</title>
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.0/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+
+        .truncate {
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #pageTitle {
+            text-align: center;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+        }
+
+        .btn-stop,
+        .btn-success,
+        .saveAuth {
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container my-4" id="bodys">
+        <h3 id="pageTitle">Auto Post Discord</h3>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="authToken" class="form-label">Auth Token</label>
+                <div class="input-group">
+                    <input type="password" id="authToken" class="form-control">
+                    <div class="input-group-append">
+                    </div>
+                </div>
+                <button id="saveAuthTokenBtn" class="btn btn-outline-primary saveAuth" type="button">Save Auth
+                    Token</button>
+            </div>
+
+            <h3>Config List</h3>
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title">Configs</h4>
+                    <button class="btn btn-outline-primary" onclick="addConfig()">Add Config</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Select</th>
+                                    <th>Message</th>
+                                    <th>Channel ID</th>
+                                    <th>Delay (ms)</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="configTableBody">
+                                <!-- Configs will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Logs</h3>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title">Log Entries</h4>
+                    <button id="clearLogsBtn" class="btn btn-secondary">Clear Logs</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Channel ID</th>
+                                    <th>Delay (ms)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody">
+                                <!-- Logs will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <button id="toggleBtn" class="btn btn-success" onclick="toggleAutoPost()">Start</button>
+        </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.0/dist/sweetalert2.all.min.js"></script>
+    <script>
+        let botConfigs = [];
+        let activeConfigs = [];
+        let postInterval = null;
+
+        const showToast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+            }
+        });
+
+        const confirmAction = (title, text) => Swal.fire({
+            title,
+            text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes'
+        });
+
+        document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
+        document.getElementById('saveAuthTokenBtn').addEventListener('click', saveAuthToken);
+
+        async function addConfig() {
+            const { value: config } = await Swal.fire({
+                title: 'Add Config',
+                html: `
+            <textarea id="message" class="swal2-textarea" placeholder="Message"></textarea>
+            <input id="channelID" class="swal2-input" placeholder="Channel ID" type="number">
+            <input id="delay" class="swal2-input" placeholder="Delay (ms)" type="number">
+        `,
+                focusConfirm: false,
+                preConfirm: () => validateConfig()
+            });
+
+            if (config) {
+                botConfigs.push(config);
+                updateConfigTable();
+                saveConfigs();
+                showToast.fire({ icon: "success", title: "Config added" });
+            }
+        }
+
+        function updateConfigTable() {
+            const tbody = document.getElementById('configTableBody');
+            tbody.innerHTML = botConfigs.map((config, index) => `
+        <tr>
+            <td><input type="checkbox" onchange="toggleConfigSelection(${index}, this.checked)"></td>
+            <td title="${config.message}">${truncateText(config.message, 20)}</td>
+            <td>${config.channelID}</td>
+            <td>${config.delay}</td>
+            <td>
+                <button class="btn btn-info btn-sm me-2" onclick="editConfig(${index})">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteConfig(${index})"><i class="fas fa-trash-alt"></i></button>
+            </td>
+        </tr>
+    `).join('');
+        }
+
+        async function editConfig(index) {
+            const config = botConfigs[index];
+            const { value: newConfig } = await Swal.fire({
+                title: 'Edit Config',
+                html: `
+            <input id="edit-message" class="swal2-input" value="${config.message}" placeholder="Message">
+            <input id="edit-channelID" class="swal2-input" value="${config.channelID}" placeholder="Channel ID" type="number">
+            <input id="edit-delay" class="swal2-input" value="${config.delay}" placeholder="Delay (ms)" type="number">
+        `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Save Changes',
+                preConfirm: () => validateConfig('edit-')
+            });
+
+            if (newConfig) {
+                botConfigs[index] = newConfig;
+                updateConfigTable();
+                saveConfigs();
+                showToast.fire({ icon: "success", title: "Config updated" });
+            }
+        }
+
+        function deleteConfig(index) {
+            confirmAction('Delete Config', 'Are you sure?').then((result) => {
+                if (result.isConfirmed) {
+                    botConfigs.splice(index, 1);
+                    activeConfigs = activeConfigs.filter(c => c !== botConfigs[index]);
+                    updateConfigTable();
+                    saveConfigs();
+                    showToast.fire({ icon: "success", title: "Config deleted" });
+                }
+            });
+        }
+
+        function toggleConfigSelection(index, isSelected) {
+            if (isSelected) {
+                activeConfigs.push(botConfigs[index]);
+            } else {
+                activeConfigs = activeConfigs.filter(c => c !== botConfigs[index]);
+            }
+        }
+
+        async function toggleAutoPost() {
+            const toggleBtn = document.getElementById('toggleBtn');
+            if (postInterval === null) {
+                if (!validateAutoPostStart()) return;
+
+                startAutoPost();
+                toggleBtn.textContent = 'Stop';
+                toggleBtn.className = 'btn btn-danger btn-stop';
+                showToast.fire({ icon: 'success', title: 'Auto post started' })
+            } else {
+                stopAutoPost();
+                toggleBtn.textContent = 'Start';
+                toggleBtn.className = 'btn btn-success';
+                showToast.fire({ icon: 'success', title: 'Auto post stopped' })
+            }
+        }
+
+        function startAutoPost() {
+            const authToken = document.getElementById('authToken').value;
+            let index = 0;
+
+            postInterval = setInterval(() => {
+                const config = activeConfigs[index];
+                sendMessage(authToken, config.channelID, config.message);
+                logMessage(config.message, config.channelID, config.delay);
+                index = (index + 1) % activeConfigs.length;
+            }, activeConfigs[0].delay);
+        }
+
+        function stopAutoPost() {
+            clearInterval(postInterval);
+            postInterval = null;
+        }
+
+        function validateConfig(prefix = '') {
+            const message = document.getElementById(prefix + 'message').value;
+            const channelID = document.getElementById(prefix + 'channelID').value;
+            const delay = document.getElementById(prefix + 'delay').value;
+
+            if (!message || !channelID || !delay) {
+                Swal.showValidationMessage('All fields are required');
+                return false;
+            }
+            if (delay < 5) {
+                Swal.showValidationMessage('Delay must be at least 5ms');
+                return false;
+            }
+            return { message, channelID, delay };
+        }
+
+        function validateAutoPostStart() {
+            if (activeConfigs.length === 0) {
+                Swal.fire('Error', 'Select at least one config', 'error');
+                return false;
+            }
+            if (!document.getElementById('authToken').value) {
+                Swal.fire('Error', 'Enter an Auth Token', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function truncateText(text, maxLength) {
+            return text.length <= maxLength ? text : text.substr(0, maxLength - 3) + '...';
+        }
+
+        function saveAuthToken() {
+            const authToken = document.getElementById('authToken').value;
+            if (!authToken) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Enter an auth token' });
+                return;
+            }
+
+            fetch('/save-auth-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authToken })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast.fire({ icon: 'success', title: "Auth token saved" });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: 'Error saving auth token' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error saving auth token' });
+                });
+        }
+
+        function saveConfigs() {
+            fetch('/save-configs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ configs: botConfigs })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) console.error('Failed to save configs');
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        async function loadConfigs() {
+            try {
+                const response = await fetch('/load-configs');
+                const data = await response.json();
+
+                if (data.success) {
+                    botConfigs = Array.isArray(data.configs) ? data.configs : [];
+                    updateConfigTable();
+                    document.getElementById('authToken').value = data.authToken || '';
+                } else {
+                    console.error('Failed to load configs:', data.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error loading configs:', error);
+            }
+        }
+
+        function sendMessage(authToken, channelID, message) {
+            fetch(`https://discord.com/api/v10/channels/${channelID}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': authToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: message })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.id) console.error('Failed to send message', data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function logMessage(message, channelID, delay) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+        <td>${new Date().toLocaleTimeString()}</td>
+        <td title="${channelID}">${truncateText(channelID, 10)}</td>
+        <td>${delay}</td>
+    `;
+            document.getElementById('logTableBody').appendChild(row);
+        }
+
+        function clearLogs() {
+            const logTableBody = document.getElementById('logTableBody');
+
+            if (!logTableBody || logTableBody.children.length < 1) {
+                showToast.fire({ icon: 'info', title: "No logs to clear" });
+                return;
+            }
+
+            confirmAction('Clear Logs', 'This will clear all logs!').then((result) => {
+                if (result.isConfirmed) {
+                    logTableBody.innerHTML = '';
+                    showToast.fire({ icon: 'success', title: "Logs cleared" });
+                }
+            });
+        }
+
+        loadConfigs();
+    </script>
+</body>
+
+</html>
