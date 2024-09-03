@@ -1,0 +1,10 @@
+{
+  "authToken": "",
+  "configs": [
+    {
+      "message": "test",
+      "channelID": "1268737102351306857",
+      "delay": "2500"
+    }
+  ]
+}
