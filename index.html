@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Auth Token - Auto Post Discord</title>
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.0/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        #pageTitle {
+            text-align: center;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4">
+        <h3 id="pageTitle">Auto Post Discord</h3>
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Enter Auth Token</h4>
+                <div class="mb-3">
+                    <label for="authToken" class="form-label">Auth Token</label>
+                    <input type="text" id="authToken" class="form-control">
+                </div>
+                <button id="saveAuthTokenBtn" class="btn btn-primary">Enter</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.0/dist/sweetalert2.all.min.js"></script>
+    <script>
+    	const showToast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+            }
+        });
+        
+        document.getElementById('saveAuthTokenBtn').addEventListener('click', saveAuthToken);
+
+        function saveAuthToken() {
+            const authToken = document.getElementById('authToken').value;
+            if (!authToken) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Enter an auth token' });
+                return;
+            }
+
+            fetch('/save-auth-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authToken })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast.fire({
+                        icon: 'success',
+                        title: 'Auth token saved',
+                        text: 'Redirecting to configuration page...',
+                    }).then(() => {
+                        window.location.href = `/conf/${authToken}`;
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: 'Error saving auth token' });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error saving auth token' });
+            });
+        }
+    </script>
+</body>
+</html>
