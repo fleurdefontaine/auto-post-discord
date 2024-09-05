@@ -8,7 +8,8 @@ This project allows you to automatically post updates to a Discord channel using
 2. **Kiwi Browser**: A browser for Android with support for extensions. [Install Kiwi Browser](https://play.google.com/store/apps/details?id=com.kiwibrowser.browser)
 3. **Auth Token**: Obtain an authentication token from the YouTube video [Watch](https://youtu.be/OvOKuKZwuwQ?si=TRTAIHzyMe13r6sI)
 4. **Repository**: Clone or download this repository to your device.
-5. **Join the Discord Server**: [![Join Discord](https://img.icons8.com/fluency/48/000000/discord-logo.png)](https://discord.gg/FKKUAsFWMt).
+5. **Join the Discord Server**:
+[![Join Discord](https://img.icons8.com/fluency/48/000000/discord-logo.png)](https://discord.gg/FKKUAsFWMt).
 
 ## Installation
 
