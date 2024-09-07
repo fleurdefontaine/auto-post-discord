@@ -40,6 +40,22 @@ app.post('/conf/:authToken/save-configs', handleRequest(async (req) => {
     return { message: 'Configs berhasil disimpan.' };
 }));
 
+app.post('/conf/:authToken/save-auto-post-state', handleRequest(async (req) => {
+    const { authToken } = req.params;
+    const { state } = req.body;
+
+    if (!['started', 'stopped'].includes(state)) {
+        throw { status: 400, message: 'Invalid state' };
+    }
+
+    const db = await readDB();
+    if (!db[authToken]) db[authToken] = {};
+    db[authToken].autoPostState = state;
+
+    await writeDB(db);
+    return { message: 'Auto-post state saved successfully.' };
+}));
+
 app.post('/save-auth-token', handleRequest(async (req) => {
     const { authToken } = req.body;
     if (!authToken) throw { status: 400, message: 'Auth token tidak boleh kosong.' };
@@ -53,7 +69,8 @@ app.get('/conf/:authToken/load-configs', handleRequest(async (req) => {
     const { authToken } = req.params;
     const db = await readDB();
     const configs = db[authToken]?.configs || [];
-    return { configs };
+    const autoPostState = db[authToken]?.autoPostState || 'stopped';
+    return { configs, autoPostState };
 }));
 
 app.listen(port, () => console.log(`Server listening at http://localhost:${port}`));
