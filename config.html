@@ -218,7 +218,6 @@
          showToast.fire({ icon: 'success', title: 'Auto post stopped' });
          }
          
-         // Save the new state to the backend
          const state = isStarted ? 'started' : 'stopped';
          saveAutoPostState(state);
          }
@@ -239,12 +238,16 @@
          }
          
          function startAutoPost() {
+         	if (activeConfigs.length === 0) return;
              let index = 0;
+             
+             const config = activeConfigs[index];
+             sendMessage(currentAuthToken, config.channelID, config.message);
+             index = (index + 1) % activeConfigs.length;
          
              postInterval = setInterval(() => {
                  const config = activeConfigs[index];
                  sendMessage(currentAuthToken, config.channelID, config.message);
-                 //logMessage(config.message, config.channelID, config.delay);
                  index = (index + 1) % activeConfigs.length;
              }, activeConfigs[0].delay);
          }
